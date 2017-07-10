@@ -23,29 +23,19 @@ import java.util.List;
 
 public class MainActivity extends AppCompatActivity {
 
-    RecyclerView colorList;
     TextView tvCount;
     ImageView imageView;
-
-    List<MyColor> swatchList = new ArrayList<>();
-    MyAdapter myAdapter;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_main);
 
-        colorList = (RecyclerView) findViewById(R.id.colorList);
         tvCount = (TextView) findViewById(R.id.tvCount);
         imageView = (ImageView) findViewById(R.id.imageView);
 
-        final Bitmap image = BitmapFactory.decodeResource(getResources(), R.drawable.gplus);
+        final Bitmap image = BitmapFactory.decodeResource(getResources(), R.drawable.sample2);
         imageView.setImageBitmap(image);
-        LinearLayoutManager mLinearLayoutManager = new LinearLayoutManager(this);
-        mLinearLayoutManager.setOrientation(LinearLayoutManager.VERTICAL);
-        colorList.setLayoutManager(mLinearLayoutManager);
-        colorList.setAdapter(myAdapter);
-
         final ProgressDialog progressDialog = new ProgressDialog(this);
         progressDialog.setMessage("Please wait..calculating pixels..");
         progressDialog.setCancelable(false);
@@ -56,17 +46,9 @@ public class MainActivity extends AppCompatActivity {
         new Thread(){
             @Override
             public void run() {
-                swatchList = rgbValuesFromBitmap(getResizedBitmap(image,50));
-
+                GreyColor greyColor = rgbValuesFromBitmap(getResizedBitmap(image,422));
                 progressDialog.cancel();
-                int population = 0;
-                int size = swatchList.size();
-                for (MyColor color: swatchList) {
-                    population+=color.getPopulation();
-                    Log.d("Color rgb: ",""+color.getRED()+", "+color.getGREEN()+", "+color.getBLUE()+" Population: "+ color.getPopulation());
-                }
-
-                float avg = (float)population / (float)size;
+                float avg = (float)greyColor.getIntensityCount() / (float)greyColor.getPixelCount();
                 setText(avg);
             }
         }.start();
@@ -78,8 +60,6 @@ public class MainActivity extends AppCompatActivity {
             @Override
             public void run() {
                 tvCount.setText(""+avg);
-                myAdapter = new MyAdapter(MainActivity.this, swatchList);
-                colorList.setAdapter(myAdapter);
             }
         });
     }
@@ -100,8 +80,10 @@ public class MainActivity extends AppCompatActivity {
         return Bitmap.createScaledBitmap(image, width, height, true);
     }
 
-    private List<MyColor> rgbValuesFromBitmap(Bitmap bitmap) {
-       List<MyColor> myColors = new ArrayList<>();
+    private GreyColor rgbValuesFromBitmap(Bitmap bitmap) {
+
+        GreyColor greyColor = new GreyColor();
+
         ColorMatrix colorMatrix = new ColorMatrix();
         ColorFilter colorFilter = new ColorMatrixColorFilter(
                 colorMatrix);
@@ -120,36 +102,22 @@ public class MainActivity extends AppCompatActivity {
 
         @ColorInt int[] argbPixels = new int[totalPixels];
         argbBitmap.getPixels(argbPixels, 0, width, 0, 0, width, height);
-        for (int i = 0; i < totalPixels; i++) {
-            @ColorInt int argbPixel = argbPixels[i];
-            int red = Color.red(argbPixel);
-            int green = Color.green(argbPixel);
-            int blue = Color.blue(argbPixel);
-            MyColor myColor = new MyColor();
-            myColor.setRED(red);
-            myColor.setBLUE(blue);
-            myColor.setGREEN(green);
-            Log.d("Debug","Calculating: "+red+", "+green+", "+blue);
-            if(myColors.size() > 0) {
-                boolean found = false;
-                for (MyColor color : myColors) {
-                    if(color.isEqual(myColor)){
-                        found = true;
-                        color.setPopulation(color.getPopulation() + 1);
-                    }
-                }
-                if(!found){
-                    myColor.setPopulation(1);
-                    myColors.add(myColor);
-
-                }
-            }else{
-                myColor.setPopulation(1);
-                myColors.add(myColor);
+        for (int i = 0; i < width; i++) {
+            for(int y= 0; y < height; y++) {
+                int rgb = argbBitmap.getPixel(i,y);
+                int red = (rgb >> 16) & 0xFF;
+                int green = (rgb >> 8) & 0xFF;
+                int blue = (rgb) & 0xFF;
+//            calculating grey
+                int grey = (red + blue + green) / 3;
+                greyColor.setIntensityCount(greyColor.getIntensityCount() + grey);
+                greyColor.setPixelCount(greyColor.getPixelCount() + 1);
+                Log.d("Debug", "GreyValue: " + grey);
             }
+
         }
 
-        return myColors;
+        return greyColor;
     }
 
 }
